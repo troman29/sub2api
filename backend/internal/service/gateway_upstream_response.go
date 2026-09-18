@@ -168,6 +168,10 @@ func (s *GatewayService) isThinkingBlockSignatureError(respBody []byte) bool {
 		return false
 	}
 
+	if isInvalidEncryptedContentError(respBody) {
+		return true
+	}
+
 	// 检测signature相关的错误（更宽松的匹配）
 	// 例如: "Invalid `signature` in `thinking` block", "***.signature" 等
 	if strings.Contains(msg, "signature") {
@@ -207,6 +211,27 @@ func (s *GatewayService) isThinkingBlockSignatureError(respBody []byte) bool {
 	}
 
 	return false
+}
+
+func isInvalidEncryptedContentError(respBody []byte) bool {
+	if strings.EqualFold(strings.TrimSpace(extractUpstreamErrorCode(respBody)), "invalid_encrypted_content") {
+		return true
+	}
+	msg := strings.ToLower(strings.TrimSpace(extractUpstreamErrorMessage(respBody)))
+	return strings.Contains(msg, "encrypted content") &&
+		(strings.Contains(msg, "could not be verified") ||
+			strings.Contains(msg, "could not be decrypted") ||
+			strings.Contains(msg, "could not be parsed"))
+}
+
+// OpenAI cannot validate encrypted reasoning created by another provider. In
+// that case the original client model describes the body format more accurately
+// than the mapped GPT model and lets the existing Claude rectifier strip it.
+func (s *GatewayService) rectifierModelForError(respBody []byte, mappedModel, originalModel string) string {
+	if isInvalidEncryptedContentError(respBody) {
+		return originalModel
+	}
+	return mappedModel
 }
 
 func (s *GatewayService) shouldFailoverOn400(respBody []byte) bool {

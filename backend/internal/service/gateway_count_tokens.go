@@ -93,6 +93,7 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 		return nil
 	}
 
+	originalReqModel := reqModel
 	// 应用模型映射：
 	// - APIKey 账号：使用账号级别的显式映射（如果配置），否则透传原始模型名
 	// - OAuth/SetupToken 账号：使用 Anthropic 标准映射（短ID → 长ID）
@@ -113,7 +114,6 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 			}
 		}
 		if mappedModel != reqModel {
-			originalReqModel := reqModel
 			if err := replaceBody(s.replaceModelInBody(body, mappedModel)); err != nil {
 				return err
 			}
@@ -169,10 +169,11 @@ func (s *GatewayService) ForwardCountTokens(ctx context.Context, c *gin.Context,
 	}
 
 	// 检测 thinking block 签名错误（400）并重试一次（过滤 thinking blocks）
-	if resp.StatusCode == 400 && s.shouldRectifySignatureError(ctx, account, respBody, reqModel) {
+	rectifierModel := s.rectifierModelForError(respBody, reqModel, originalReqModel)
+	if resp.StatusCode == 400 && s.shouldRectifySignatureError(ctx, account, respBody, rectifierModel) {
 		logger.LegacyPrintf("service.gateway", "Account %d: detected thinking block signature error on count_tokens, retrying with filtered thinking blocks", account.ID)
 
-		filteredBody := FilterThinkingBlocksForRetry(body, reqModel)
+		filteredBody := FilterThinkingBlocksForRetry(body, rectifierModel)
 		retryReq, retryWireBody, buildErr := s.buildCountTokensRequest(ctx, c, account, filteredBody, token, tokenType, reqModel, shouldMimicClaudeCode)
 		if buildErr == nil {
 			retryResp, retryErr := s.httpUpstream.DoWithTLS(retryReq, proxyURL, account.ID, account.Concurrency, s.tlsFPProfileService.ResolveTLSProfile(account))

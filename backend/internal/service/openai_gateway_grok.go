@@ -419,20 +419,20 @@ func requestHasGrokEncryptedReasoning(body []byte) bool {
 	return false
 }
 
-type grokEncryptedContentStripRetriedKey struct{}
+type anthropicEncryptedContentStripRetriedKey struct{}
 
-func markGrokEncryptedContentStripRetried(ctx context.Context) context.Context {
-	return context.WithValue(ctx, grokEncryptedContentStripRetriedKey{}, true)
+func markAnthropicEncryptedContentStripRetried(ctx context.Context) context.Context {
+	return context.WithValue(ctx, anthropicEncryptedContentStripRetriedKey{}, true)
 }
 
-func grokEncryptedContentStripRetried(ctx context.Context) bool {
-	v, _ := ctx.Value(grokEncryptedContentStripRetriedKey{}).(bool)
+func anthropicEncryptedContentStripRetried(ctx context.Context) bool {
+	v, _ := ctx.Value(anthropicEncryptedContentStripRetriedKey{}).(bool)
 	return v
 }
 
 // stripAnthropicThinkingSignatures removes thinking.signature from Claude
-// history so a different Grok OAuth account can accept multi-turn tool
-// continuations after decrypt failures. Returns ok=false when nothing changed.
+// history so an upstream account can accept multi-turn tool continuations after
+// encrypted-content failures. Returns ok=false when nothing changed.
 func stripAnthropicThinkingSignatures(body []byte) ([]byte, bool) {
 	if len(body) == 0 || !bytes.Contains(body, []byte(`"signature"`)) {
 		return body, false
