@@ -132,7 +132,7 @@ func TestOpenAI429FastPath_BlocksOAuthImmediatelyWhenSevenDayQuotaIsExhausted(t 
 	require.False(t, shouldDisable)
 	require.True(t, svc.isOpenAIAccountRuntimeBlocked(account))
 	require.Equal(t, 1, repo.setRateLimitedCalls)
-	require.Greater(t, time.Until(repo.lastRateLimitedUntil), 6*24*time.Hour)
+	require.InDelta(t, openAIExhaustedWindowProbeCooldown, time.Until(repo.lastRateLimitedUntil), float64(time.Minute))
 	require.False(t, svc.ShouldRetryOpenAIOAuth429(account, headers, nil))
 }
 
