@@ -419,17 +419,6 @@ func requestHasGrokEncryptedReasoning(body []byte) bool {
 	return false
 }
 
-type anthropicEncryptedContentStripRetriedKey struct{}
-
-func markAnthropicEncryptedContentStripRetried(ctx context.Context) context.Context {
-	return context.WithValue(ctx, anthropicEncryptedContentStripRetriedKey{}, true)
-}
-
-func anthropicEncryptedContentStripRetried(ctx context.Context) bool {
-	v, _ := ctx.Value(anthropicEncryptedContentStripRetriedKey{}).(bool)
-	return v
-}
-
 // stripAnthropicThinkingSignatures removes thinking.signature from Claude
 // history so an upstream account can accept multi-turn tool continuations after
 // encrypted-content failures. Returns ok=false when nothing changed.
