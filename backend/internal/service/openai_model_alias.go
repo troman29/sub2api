@@ -6,6 +6,19 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 )
 
+// Windows come from the account's Codex cache (models_cache.json, max_context_window).
+// The version number proves nothing: gpt-5.5 is a plain 272k model, only 5.6 and gpt-6 are long.
+var openAIGPTContextWindows = map[string]int64{
+	"gpt-5.6":       configuredCodexLongGPTContext,
+	"gpt-5.6-sol":   configuredCodexLongGPTContext,
+	"gpt-5.6-terra": configuredCodexLongGPTContext,
+	"gpt-5.6-luna":  configuredCodexLongGPTContext,
+	"gpt-6":         configuredCodexLongGPTContext,
+	"gpt-6-astra":   configuredCodexLongGPTContext,
+	"gpt-6-sol":     configuredCodexLongGPTContext,
+	"gpt-6-luna":    configuredCodexLongGPTContext,
+}
+
 func lastOpenAIModelSegment(model string) string {
 	model = strings.TrimSpace(model)
 	if model == "" {
@@ -88,8 +101,6 @@ func normalizeKnownOpenAICodexModel(model string) string {
 	}
 }
 
-// isOpenAIGPT56Model 判断是否 GPT-5.6 系列模型；入参可为原始模型名
-// （含大小写/路径/后缀变体）或已归一化的基名，两者均能正确识别。
 func isOpenAIGPT56Model(model string) bool {
 	normalized := canonicalizeOpenAIModelAliasSpelling(model)
 	if normalized == "gpt-5.6" {
@@ -105,6 +116,13 @@ func isOpenAIGPT56Model(model string) bool {
 	}
 	return false
 }
+
+
+func openAIGPTContextWindow(model string) (int64, bool) {
+	contextWindow, ok := openAIGPTContextWindows[canonicalizeOpenAIModelAliasSpelling(model)]
+	return contextWindow, ok
+}
+
 
 // isOpenAIGPT6AstraModel reports GPT-6 Astra and dated/provider-prefixed variants.
 // The public "gpt-6" alias routes to Astra; unrelated GPT-6 families stay excluded.

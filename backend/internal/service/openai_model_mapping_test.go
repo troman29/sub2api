@@ -1,6 +1,10 @@
 package service
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
 
 func TestResolveOpenAIForwardModel(t *testing.T) {
 	tests := []struct {
@@ -461,6 +465,26 @@ func TestNormalizeOpenAIModelForUpstream(t *testing.T) {
 				t.Fatalf("normalizeOpenAIModelForUpstream(...) = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestOpenAIGPTContextWindow(t *testing.T) {
+	tests := []struct {
+		model  string
+		window int64
+		known  bool
+	}{
+		{model: "gpt-5.6-terra", window: 872_000, known: true},
+		{model: "openai/gpt-5.6-luna", window: 872_000, known: true},
+		{model: "gpt-6-astra", window: 872_000, known: true},
+		{model: "gpt-5.5", known: false},
+		{model: "gpt-7-preview", known: false},
+		{model: "gpt-5.3-codex", known: false},
+	}
+	for _, tc := range tests {
+		window, known := openAIGPTContextWindow(tc.model)
+		require.Equal(t, tc.known, known, tc.model)
+		require.Equal(t, tc.window, window, tc.model)
 	}
 }
 

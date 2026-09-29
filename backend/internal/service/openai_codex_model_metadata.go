@@ -424,6 +424,12 @@ func applyUpstreamModelMetadataToCodexDescriptor(
 		descriptor.MaxContextWindow = metadata.MaxContextWindow
 		descriptor.ContextWindow = min(descriptor.ContextWindow, metadata.MaxContextWindow)
 	}
+	// Only when upstream named no window at all: anything it did name, 272k included, wins.
+	if contextWindow, ok := openAIGPTContextWindow(descriptor.Slug); ok &&
+		metadata.ContextWindow == 0 && metadata.MaxContextWindow == 0 {
+		descriptor.ContextWindow = contextWindow
+		descriptor.MaxContextWindow = contextWindow
+	}
 }
 
 func configuredCodexReasoningLevelDescription(level string) string {
