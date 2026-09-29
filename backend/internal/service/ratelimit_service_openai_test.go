@@ -33,8 +33,7 @@ func TestCalculateOpenAI429ResetTime_7dExhausted(t *testing.T) {
 		t.Fatal("expected non-nil resetAt")
 	}
 
-	// Should be approximately 384607 seconds from now
-	expectedDuration := 384607 * time.Second
+	expectedDuration := openAIExhaustedWindowProbeCooldown
 	minExpected := before.Add(expectedDuration)
 	maxExpected := after.Add(expectedDuration)
 
@@ -63,8 +62,7 @@ func TestCalculateOpenAI429ResetTime_5hExhausted(t *testing.T) {
 		t.Fatal("expected non-nil resetAt")
 	}
 
-	// Should be approximately 3600 seconds from now
-	expectedDuration := 3600 * time.Second
+	expectedDuration := openAIExhaustedWindowProbeCooldown
 	minExpected := before.Add(expectedDuration)
 	maxExpected := after.Add(expectedDuration)
 
@@ -165,7 +163,7 @@ func TestCalculateOpenAI429ResetTime_ReversedWindowOrder(t *testing.T) {
 	}
 
 	// Should correctly identify that primary is 5h (smaller window) and use its reset time
-	expectedDuration := 3600 * time.Second
+	expectedDuration := openAIExhaustedWindowProbeCooldown
 	minExpected := before.Add(expectedDuration)
 	maxExpected := after.Add(expectedDuration)
 
@@ -514,25 +512,12 @@ func TestCalculateOpenAI429ResetTime_UserProvidedScenario(t *testing.T) {
 		t.Fatal("expected non-nil resetAt for user scenario")
 	}
 
-	// Should use the 7d reset time (384607 seconds) since 7d limit is exhausted (100%)
-	expectedDuration := 384607 * time.Second
-	minExpected := before.Add(expectedDuration)
-	maxExpected := after.Add(expectedDuration)
+	minExpected := before.Add(openAIExhaustedWindowProbeCooldown)
+	maxExpected := after.Add(openAIExhaustedWindowProbeCooldown)
 
 	if resetAt.Before(minExpected) || resetAt.After(maxExpected) {
 		t.Errorf("resetAt %v not in expected range [%v, %v]", resetAt, minExpected, maxExpected)
 	}
-
-	// Verify it's approximately 4.45 days (384607 seconds)
-	duration := resetAt.Sub(before)
-	actualDays := duration.Hours() / 24.0
-
-	// 384607 / 86400 = ~4.45 days
-	if actualDays < 4.4 || actualDays > 4.5 {
-		t.Errorf("expected ~4.45 days, got %.2f days", actualDays)
-	}
-
-	t.Logf("User scenario: reset_at=%v, duration=%.2f days", resetAt, actualDays)
 }
 
 func TestCalculateOpenAI429ResetTime_5MinFallbackWhenNoReset(t *testing.T) {
@@ -551,4 +536,24 @@ func TestCalculateOpenAI429ResetTime_5MinFallbackWhenNoReset(t *testing.T) {
 	if resetAt != nil {
 		t.Errorf("expected nil when no reset_after_seconds, got %v", resetAt)
 	}
+}
+
+func TestCalculateOpenAI429ResetTime_ShortResetKeepsUpstreamValue(t *testing.T) {
+	svc := &RateLimitService{}
+
+	headers := http.Header{}
+	headers.Set("x-codex-primary-used-percent", "50")
+	headers.Set("x-codex-primary-reset-after-seconds", "500000")
+	headers.Set("x-codex-primary-window-minutes", "10080")
+	headers.Set("x-codex-secondary-used-percent", "100")
+	headers.Set("x-codex-secondary-reset-after-seconds", "600")
+	headers.Set("x-codex-secondary-window-minutes", "300")
+
+	before := time.Now()
+	resetAt := svc.calculateOpenAI429ResetTime(headers)
+	after := time.Now()
+
+	require.NotNil(t, resetAt)
+	require.False(t, resetAt.Before(before.Add(600*time.Second)))
+	require.False(t, resetAt.After(after.Add(600*time.Second)))
 }

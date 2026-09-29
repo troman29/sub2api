@@ -568,6 +568,17 @@ func (s *OpenAIGatewayService) ForwardAsAnthropic(
 	return result, handleErr
 }
 
+type anthropicEncryptedContentStripRetriedKey struct{}
+
+func markAnthropicEncryptedContentStripRetried(ctx context.Context) context.Context {
+	return context.WithValue(ctx, anthropicEncryptedContentStripRetriedKey{}, true)
+}
+
+func anthropicEncryptedContentStripRetried(ctx context.Context) bool {
+	v, _ := ctx.Value(anthropicEncryptedContentStripRetriedKey{}).(bool)
+	return v
+}
+
 func ensureCodexOAuthInstructionsField(reqBody map[string]any) {
 	if reqBody == nil {
 		return

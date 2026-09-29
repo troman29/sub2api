@@ -75,6 +75,12 @@ const geminiPrecheckCacheTTL = time.Minute
 const (
 	defaultRateLimit429CooldownSeconds = 5
 	maxRateLimit429CooldownSeconds     = 7200
+	// Ceiling for the pause after a 429 that reports an exhausted window. The header names when
+	// the window clears completely, but the subscription limit is rolling: capacity returns
+	// earlier as old requests age out, and nothing re-probes a paused account. Past this ceiling
+	// the account goes back to the pool and the next request probes it for real; if the limit
+	// still holds, upstream answers 429 and the pause is extended the same way.
+	openAIExhaustedWindowProbeCooldown = 30 * time.Minute
 )
 
 const (
@@ -1377,18 +1383,29 @@ func calculateOpenAI429ResetTime(headers http.Header) *time.Time {
 	// 优先使用被触发限制的重置时间
 	if is7dExhausted && normalized.Reset7dSeconds != nil {
 		resetAt := now.Add(time.Duration(*normalized.Reset7dSeconds) * time.Second)
-		slog.Info("openai_429_7d_limit_exhausted", "reset_after_seconds", *normalized.Reset7dSeconds, "reset_at", resetAt)
-		return &resetAt
+		pausedUntil := openAIProbeCappedResetAt(now, resetAt)
+		slog.Info("openai_429_7d_limit_exhausted", "reset_after_seconds", *normalized.Reset7dSeconds, "reset_at", resetAt, "paused_until", pausedUntil)
+		return &pausedUntil
 	}
 	if is5hExhausted && normalized.Reset5hSeconds != nil {
 		resetAt := now.Add(time.Duration(*normalized.Reset5hSeconds) * time.Second)
-		slog.Info("openai_429_5h_limit_exhausted", "reset_after_seconds", *normalized.Reset5hSeconds, "reset_at", resetAt)
-		return &resetAt
+		pausedUntil := openAIProbeCappedResetAt(now, resetAt)
+		slog.Info("openai_429_5h_limit_exhausted", "reset_after_seconds", *normalized.Reset5hSeconds, "reset_at", resetAt, "paused_until", pausedUntil)
+		return &pausedUntil
 	}
 
 	// 未达到100%时，reset-after 只代表窗口信息，不能证明账号配额耗尽。
 	// 这类瞬时429必须回到可配置的兜底路径，避免未耗尽账号被长时间排除。
 	return nil
+}
+
+// The true window reset stays in the account extra (codex_*_reset_at); what this returns is
+// when the account is probed again.
+func openAIProbeCappedResetAt(now, resetAt time.Time) time.Time {
+	if ceiling := now.Add(openAIExhaustedWindowProbeCooldown); resetAt.After(ceiling) {
+		return ceiling
+	}
+	return resetAt
 }
 
 func (s *RateLimitService) calculateOpenAI429ResetTime(headers http.Header) *time.Time {

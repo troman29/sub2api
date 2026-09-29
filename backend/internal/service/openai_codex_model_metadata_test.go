@@ -61,6 +61,40 @@ func TestAstraUltraCatalogPreservesExplicitWorkflowOverrides(t *testing.T) {
 	}
 }
 
+func TestKnownGPTContextSurvivesEmptyUpstreamMetadata(t *testing.T) {
+	descriptor := newConfiguredCodexModelDescriptor("gpt-5.6-terra")
+	applyUpstreamModelMetadataToCodexDescriptor(&descriptor, codexModelMetadataOverride{})
+
+	require.Equal(t, int64(872_000), descriptor.ContextWindow)
+	require.Equal(t, int64(872_000), descriptor.MaxContextWindow)
+}
+
+func TestGPT6PreservesFallbackUpstreamMetadata(t *testing.T) {
+	descriptor := newConfiguredCodexModelDescriptor("gpt-6-astra")
+	applyUpstreamModelMetadataToCodexDescriptor(&descriptor, codexModelMetadataOverride{
+		UpstreamModelMetadata: UpstreamModelMetadata{
+			ContextWindow:    configuredCodexFallbackContext,
+			MaxContextWindow: configuredCodexFallbackContext,
+		},
+	})
+
+	require.Equal(t, int64(configuredCodexFallbackContext), descriptor.ContextWindow)
+	require.Equal(t, int64(configuredCodexFallbackContext), descriptor.MaxContextWindow)
+}
+
+func TestKnownGPTContextPreservesExplicitUpstreamMetadata(t *testing.T) {
+	descriptor := newConfiguredCodexModelDescriptor("gpt-5.5")
+	applyUpstreamModelMetadataToCodexDescriptor(&descriptor, codexModelMetadataOverride{
+		UpstreamModelMetadata: UpstreamModelMetadata{
+			ContextWindow:    400_000,
+			MaxContextWindow: 400_000,
+		},
+	})
+
+	require.Equal(t, int64(400_000), descriptor.ContextWindow)
+	require.Equal(t, int64(400_000), descriptor.MaxContextWindow)
+}
+
 func TestAstraCodexToolCapabilitiesUseAccountScopeAndSharedDeclarations(t *testing.T) {
 	newAccount := func(baseURL string) Account {
 		return Account{Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Credentials: map[string]any{
