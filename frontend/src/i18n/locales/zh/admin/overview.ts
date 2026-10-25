@@ -50,6 +50,7 @@ export default {
       tokens: 'Token',
       cache: '缓存',
       recentUsage: '最近使用',
+      actualSpending: '实际消费 ($)',
       viewModelDistribution: '模型分布',
       viewSpendingRanking: '用户消费榜',
       spendingRankingTitle: '用户消费榜',
@@ -977,6 +978,7 @@ export default {
         deepseek: 'DeepSeek',
         minimax: 'MiniMax',
         opencode_go: 'OpenCode',
+        typesafe: 'TypeSafe / Jev',
         composite: 'Composite',
       },
       saving: '保存中...',
@@ -1004,6 +1006,12 @@ export default {
         privacySetOnly: '仅允许隐私保护已设置的账号',
         privacySetOnlyEnabled: '已启用 — Privacy 未设置的账号将被排除',
         disabled: '未启用'
+      },
+      i18nField: {
+        default: '默认',
+        add: '新增 {language} 版',
+        edit: '编辑 {language} 版',
+        placeholder: '{language} 版，留空则显示默认内容'
       },
       enterGroupName: '请输入分组名称',
       optionalDescription: '可选描述',
